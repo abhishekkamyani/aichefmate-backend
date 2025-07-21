@@ -262,31 +262,46 @@ def get_recipe_details(recipe_id):
         return jsonify({"error": "Could not retrieve recipe details.", "details": str(e)}), 500
 
 
-# --- Toggle favorite status for a recipe ---
 @bp.route('/recipe/<recipe_id>/favorite', methods=['POST'])
 @jwt_required
 def toggle_favorite(recipe_id):
     """
-    Adds or removes a recipe from the user's favorites.
+    Adds/removes a recipe from the user's favorites and updates the 
+    isFavorited boolean in the recipes table's JSONB field.
     """
     user_id = request.user.id
-    print("Add to favorite API")
     
     try:
-        # Check if the recipe is already favorited
+        # Fetch the current recipe data to update the JSONB field
+        recipe_response = supabase.table("recipes").select("full_recipe_data").eq("id", recipe_id).single().execute()
+        if not recipe_response.data:
+            return jsonify({"error": "Recipe not found to update."}), 404
+        
+        current_recipe_data = recipe_response.data['full_recipe_data']
+
+        # Check if the recipe is already favorited by the user
         existing_favorite = supabase.table("favorite_recipes").select("id").eq("user_id", user_id).eq("recipe_id", recipe_id).execute()
 
         if existing_favorite.data:
-            # If it exists, unfavorite it by deleting the row
+            # --- Unfavorite ---
+            # 1. Remove from favorite_recipes table
             supabase.table("favorite_recipes").delete().eq("id", existing_favorite.data[0]['id']).execute()
+            
+            # 2. Update the isFavorited field in the recipes table's JSONB
+            current_recipe_data['isFavorited'] = False
+            supabase.table("recipes").update({"full_recipe_data": current_recipe_data}).eq("id", recipe_id).execute()
+            
             return jsonify({"status": "unfavorited", "message": "Recipe removed from favorites."})
         else:
-            # If it doesn't exist, favorite it by inserting a new row
-            new_favorite = {
-                "user_id": user_id,
-                "recipe_id": recipe_id
-            }
+            # --- Favorite ---
+            # 1. Add to favorite_recipes table
+            new_favorite = {"user_id": user_id, "recipe_id": recipe_id}
             supabase.table("favorite_recipes").insert(new_favorite).execute()
+
+            # 2. Update the isFavorited field in the recipes table's JSONB
+            current_recipe_data['isFavorited'] = True
+            supabase.table("recipes").update({"full_recipe_data": current_recipe_data}).eq("id", recipe_id).execute()
+
             return jsonify({"status": "favorited", "message": "Recipe added to favorites."})
 
     except Exception as e:

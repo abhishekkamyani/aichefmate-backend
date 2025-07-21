@@ -12,6 +12,11 @@
 2. Install Dependencies
     ``` 
     pip install -r requirements.txt
-3. Run
+
+3. Activate Virtual Environment
     ```
-    python run.py
+    venv\Scripts\activate
+
+4. Start Flask Server
+    ```
+    flask run --host=0.0.0.0 --port=5000 --debug
