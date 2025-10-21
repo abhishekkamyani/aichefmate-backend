@@ -331,7 +331,7 @@ def get_user_favorites():
 
         if not favorites_response.data:
             # If the user has no favorited recipes, return an empty list
-            return jsonify({"recipes": []})
+            return jsonify({"recipes": []}), 200
 
         recipe_ids = [item['recipe_id'] for item in favorites_response.data]
 
@@ -343,7 +343,7 @@ def get_user_favorites():
             .execute()
 
         if not recipes_response.data:
-            return jsonify({"recipes": []})
+            return jsonify({"recipes": []}), 200
 
         # Step 3: Format the data to match the structure required by the client
         formatted_recipes = []
@@ -356,6 +356,10 @@ def get_user_favorites():
                 "difficulty": recipe.get("difficulty")
             })
 
+        return jsonify({"recipes": formatted_recipes}), 200
+
     except Exception as e:
         print(f"Error fetching user favorites: {e}")
+        # Always return a response from the exception handler.
         return jsonify({"error": "Could not retrieve user favorites.", "details": str(e)}), 500
+
